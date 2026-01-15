@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Sprout, DollarSign, Cloud, FileText, Settings, ChevronRight } from "lucide-react"
+import { LayoutDashboard, Sprout, DollarSign, Cloud, FileText, Settings, ChevronRight, MapPin } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/crops", label: "Crop Monitoring", icon: Sprout },
+  { href: "/dashboard/map", label: "Percelen Kaart", icon: MapPin },
   { href: "/dashboard/finance", label: "Finance", icon: DollarSign },
   { href: "/dashboard/climate", label: "Climate Insights", icon: Cloud },
   { href: "/dashboard/reports", label: "Reports", icon: FileText },
@@ -18,7 +19,7 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 bg-card border-r border-border h-screen flex flex-col">
+    <aside className="w-64 bg-card border-r border-border h-screen flex flex-col hidden md:flex">
       <div className="p-4 border-b border-border">
         <Logo />
       </div>

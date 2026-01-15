@@ -1,21 +1,107 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
 
-const data = [
-  { month: "Mar", growth: 50 },
-  { month: "Apr", growth: 120 },
-  { month: "May", growth: 180 },
-  { month: "Jun", growth: 220 },
-  { month: "Jul", growth: 280 },
-  { month: "Aug", growth: 320 },
-  { month: "Sep", growth: 350 },
-  { month: "Oct", growth: 280 },
-  { month: "Nov", growth: 200 },
-]
+interface GrowthData {
+  month: string
+  growth: number
+}
 
 export function CropGrowthChart() {
+  const [data, setData] = useState<GrowthData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchGrowthData() {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          setLoading(false)
+          return
+        }
+
+        // Get user's crops
+        const { data: crops } = await supabase.from("crops").select("id").eq("user_id", user.id)
+        if (!crops || crops.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const cropIds = crops.map((c) => c.id)
+
+        // Get growth data
+        const { data: growthData } = await supabase
+          .from("crop_growth")
+          .select("*")
+          .in("crop_id", cropIds)
+          .order("recorded_at", { ascending: true })
+
+        if (growthData) {
+          // Group by month
+          const monthlyData: Record<string, { total: number; count: number }> = {}
+          growthData.forEach((g) => {
+            const date = new Date(g.recorded_at)
+            const monthKey = date.toLocaleDateString("en-US", { month: "short" })
+            if (!monthlyData[monthKey]) {
+              monthlyData[monthKey] = { total: 0, count: 0 }
+            }
+            monthlyData[monthKey].total += Number(g.growth_percentage || 0)
+            monthlyData[monthKey].count += 1
+          })
+
+          const chartData = Object.entries(monthlyData)
+            .map(([month, { total, count }]) => ({
+              month,
+              growth: Math.round(total / count),
+            }))
+            .slice(-8) // Last 8 months
+
+          setData(chartData.length > 0 ? chartData : [])
+        }
+      } catch (err) {
+        console.error("Error fetching growth data:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchGrowthData()
+  }, [])
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">Crop Growth</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground">Loading...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">Crop Growth</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+            No growth data available. Add crops and growth records to see the chart.
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">

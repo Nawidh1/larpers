@@ -2,10 +2,22 @@ import { Header } from "@/components/dashboard/header"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { TemperatureChart } from "@/components/dashboard/charts/temperature-chart"
 import { RainfallChart } from "@/components/dashboard/charts/rainfall-chart"
+import { ClimateTimelineChart } from "@/components/dashboard/charts/climate-timeline-chart"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Sun, Droplets, CloudRain, AlertTriangle } from "lucide-react"
+import { getLatestClimateData } from "@/lib/supabase/queries"
 
-export default function ClimatePage() {
+export default async function ClimatePage() {
+  const latestClimate = await getLatestClimateData()
+
+  const temperature = latestClimate?.temperature
+    ? `${Math.round(Number(latestClimate.temperature))}°C`
+    : "N/A"
+  const humidity = latestClimate?.humidity ? `${Math.round(Number(latestClimate.humidity))}%` : "N/A"
+  const rainfall = latestClimate?.rainfall_mm
+    ? `${Math.round(Number(latestClimate.rainfall_mm))} mm`
+    : "N/A"
+
   return (
     <div className="flex flex-col h-full">
       <Header title="Climate Insights" />
@@ -13,10 +25,13 @@ export default function ClimatePage() {
       <div className="flex-1 p-6 space-y-6">
         {/* Climate Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard title="Current Weather" value="28°C" icon={<Sun size={32} className="text-agri-yellow" />} />
-          <StatCard title="Humidity" value="78%" icon={<Droplets size={32} className="text-agri-blue" />} />
-          <StatCard title="Rainfall" value="12 mm" icon={<CloudRain size={32} className="text-agri-blue" />} />
+          <StatCard title="Current Weather" value={temperature} icon={<Sun size={32} className="text-agri-yellow" />} />
+          <StatCard title="Humidity" value={humidity} icon={<Droplets size={32} className="text-agri-blue" />} />
+          <StatCard title="Rainfall" value={rainfall} icon={<CloudRain size={32} className="text-agri-blue" />} />
         </div>
+
+        {/* D3.js Timeline Chart - Last 30 Days */}
+        <ClimateTimelineChart />
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

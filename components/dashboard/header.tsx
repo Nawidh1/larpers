@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
+import { useEffect, useState } from "react"
 
-import { Bell, ChevronDown } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { NotificationsDropdown } from "@/components/dashboard/notifications-dropdown"
 
 interface HeaderProps {
   title: string
@@ -22,6 +24,44 @@ interface HeaderProps {
 
 export function Header({ title, children }: HeaderProps) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  const [userName, setUserName] = useState<string>("User")
+  const [userEmail, setUserEmail] = useState<string>("")
+
+  useEffect(() => {
+    setMounted(true)
+    loadUserData()
+  }, [])
+
+  async function loadUserData() {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (user) {
+        setUserEmail(user.email || "")
+
+        // Get profile name
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single()
+
+        if (profile?.full_name) {
+          setUserName(profile.full_name)
+        } else {
+          // Fallback to email username
+          const emailName = user.email?.split("@")[0] || "User"
+          setUserName(emailName.charAt(0).toUpperCase() + emailName.slice(1))
+        }
+      }
+    } catch (err) {
+      console.error("Error loading user data:", err)
+    }
+  }
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -31,38 +71,61 @@ export function Header({ title, children }: HeaderProps) {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shadow-sm">
-      <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+    <header className="h-20 md:h-24 border-b border-border bg-card flex items-center justify-between px-4 md:px-6 shadow-sm" style={{ minHeight: '80px' }}>
+      <h1 className="text-xl md:text-2xl font-semibold text-foreground">{title}</h1>
 
       <div className="flex items-center gap-3">
         {children}
 
-        <div className="flex items-center gap-2 ml-2 pl-4 border-l border-border">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </Button>
+        <div className="flex items-center gap-2 ml-2 pl-2 md:pl-4 border-l border-border">
+          <NotificationsDropdown />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/farmer-avatar.png" />
-                  <AvatarFallback className="bg-agri-green text-white text-sm">NH</AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium hidden sm:inline">Niece Hisan</span>
-                <ChevronDown size={16} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>Settings</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                Log Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {mounted && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-1 md:gap-2 px-1 md:px-2">
+                  <Avatar className="h-7 w-7 md:h-8 md:w-8">
+                    <AvatarImage src="/farmer-avatar.png" />
+                    <AvatarFallback className="bg-agri-green text-white text-xs md:text-sm">
+                      {userName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs md:text-sm font-medium hidden md:inline">{userName}</span>
+                  <ChevronDown size={14} className="hidden md:block md:w-4 md:h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                  Log Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {!mounted && (
+            <div className="flex items-center gap-1 md:gap-2 px-1 md:px-2">
+              <Avatar className="h-7 w-7 md:h-8 md:w-8">
+                <AvatarImage src="/farmer-avatar.png" />
+                <AvatarFallback className="bg-agri-green text-white text-xs md:text-sm">
+                  {userName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2) || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-xs md:text-sm font-medium hidden md:inline">{userName}</span>
+              <ChevronDown size={14} className="hidden md:block md:w-4 md:h-4" />
+            </div>
+          )}
         </div>
       </div>
     </header>

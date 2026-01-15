@@ -1,0 +1,54 @@
+{
+  "name": "Agritech Dashboard",
+  "short_name": "Agritech",
+  "description": "Smart agricultural management dashboard optimized for low-connectivity areas",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#22c55e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-light-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-light-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-light-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["agriculture", "productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View dashboard overview",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-light-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Crops",
+      "short_name": "Crops",
+      "description": "Manage crops",
+      "url": "/dashboard/crops",
+      "icons": [{ "src": "/icon-light-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Finance",
+      "short_name": "Finance",
+      "description": "View finances",
+      "url": "/dashboard/finance",
+      "icons": [{ "src": "/icon-light-96x96.png", "sizes": "96x96" }]
+    }
+  ]
+}

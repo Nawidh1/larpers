@@ -1,19 +1,96 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
 
-const data = [
-  { month: "Mar", rainfall: 45 },
-  { month: "Apr", rainfall: 62 },
-  { month: "May", rainfall: 38 },
-  { month: "Jun", rainfall: 28 },
-  { month: "Jul", rainfall: 15 },
-  { month: "Aug", rainfall: 22 },
-  { month: "Sep", rainfall: 35 },
-]
+interface RainfallData {
+  month: string
+  rainfall: number
+}
 
 export function RainfallChart() {
+  const [data, setData] = useState<RainfallData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchRainfallData() {
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          setLoading(false)
+          return
+        }
+
+        const { data: climateData } = await supabase
+          .from("climate_data")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("recorded_at", { ascending: true })
+          .limit(30)
+
+        if (climateData) {
+          // Group by month
+          const monthlyData: Record<string, number> = {}
+          climateData.forEach((c) => {
+            const date = new Date(c.recorded_at)
+            const monthKey = date.toLocaleDateString("en-US", { month: "short" })
+            if (c.rainfall_mm) {
+              monthlyData[monthKey] = (monthlyData[monthKey] || 0) + Number(c.rainfall_mm)
+            }
+          })
+
+          const chartData = Object.entries(monthlyData)
+            .map(([month, rainfall]) => ({
+              month,
+              rainfall: Math.round(rainfall),
+            }))
+            .slice(-7) // Last 7 months
+
+          setData(chartData.length > 0 ? chartData : [])
+        }
+      } catch (err) {
+        console.error("Error fetching rainfall data:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRainfallData()
+  }, [])
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">Rainfall (mm)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[180px] flex items-center justify-center text-muted-foreground">Loading...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">Rainfall (mm)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[180px] flex items-center justify-center text-muted-foreground">
+            No rainfall data available. Add climate records to see the chart.
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
@@ -20,35 +20,105 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
   const router = useRouter()
 
+  // Check for error or success messages in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const errorParam = params.get("error")
+    const confirmed = params.get("confirmed")
+    
+    if (errorParam) {
+      setError(errorParam)
+    }
+    if (confirmed === "true") {
+      setError("Email bevestigd! Je kunt nu inloggen.")
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
+    // Trim and validate email
+    const trimmedEmail = email.trim().toLowerCase()
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address")
+      setLoading(false)
+      return
+    }
+
+    // Password validation
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      setLoading(false)
+      return
+    }
+
     try {
       const supabase = createClient()
 
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
           password,
           options: {
-            emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
           },
         })
-        if (error) throw error
-        setError("Check your email for the confirmation link!")
+        if (signUpError) throw signUpError
+        
+        // If email confirmation is disabled, user is automatically logged in
+        if (signUpData.user && signUpData.session) {
+          // User is logged in, redirect to dashboard
+          await new Promise(resolve => setTimeout(resolve, 100))
+          router.push("/dashboard")
+          router.refresh()
+        } else if (signUpData.user) {
+          // User created but needs email confirmation
+          setError("Account created! Please check your email for the confirmation link.")
+        } else {
+          throw new Error("Failed to create account. Please try again.")
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
           password,
         })
         if (error) throw error
-        router.push("/dashboard")
-        router.refresh()
+        
+        // Check if sign in was successful
+        if (data.user) {
+          // Wait a bit for the session to be set
+          await new Promise(resolve => setTimeout(resolve, 100))
+          router.push("/dashboard")
+          router.refresh()
+        } else {
+          throw new Error("Login failed. Please try again.")
+        }
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred")
+      // Better error handling
+      let errorMessage = "An error occurred"
+      if (err.message) {
+        errorMessage = err.message
+        // Handle specific Supabase errors
+        if (err.message.includes("Invalid login credentials") || err.message.includes("Invalid credentials")) {
+          errorMessage = "Invalid email or password. Don't have an account? Click 'Sign Up' to create one."
+        } else if (err.message.includes("Email rate limit exceeded")) {
+          errorMessage = "Too many requests. Please try again later."
+        } else if (err.message.includes("User already registered")) {
+          errorMessage = "This email is already registered. Please sign in instead."
+        } else if (err.message.includes("Email not confirmed")) {
+          errorMessage = "Please check your email and click the confirmation link before signing in."
+        } else if (err.message.includes("Email address")) {
+          errorMessage = err.message
+        }
+      }
+      console.error("Login error:", err)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -94,8 +164,23 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <Alert variant={error.includes("Check your email") ? "default" : "destructive"}>
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant={error.includes("Check your email") || error.includes("Account created") ? "default" : "destructive"}>
+                <AlertDescription className="flex flex-col gap-2">
+                  <span>{error}</span>
+                  {error.includes("Invalid email or password") && !isSignUp && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 h-auto text-sm text-agri-green hover:text-agri-green-dark self-start"
+                      onClick={() => {
+                        setIsSignUp(true)
+                        setError(null)
+                      }}
+                    >
+                      Klik hier om een account aan te maken →
+                    </Button>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -111,10 +196,19 @@ export default function LoginPage() {
               type="button"
               variant="outline"
               className="w-full bg-transparent"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp)
+                setError(null) // Clear error when switching modes
+              }}
             >
               {isSignUp ? "Already have an account? Log In" : "Don't have an account? Sign Up"}
             </Button>
+            
+            {isSignUp && (
+              <p className="text-sm text-muted-foreground text-center">
+                Create a new account to get started
+              </p>
+            )}
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
