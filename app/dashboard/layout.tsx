@@ -8,7 +8,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex h-screen bg-muted">
+    <div className="flex h-screen bg-muted" suppressHydrationWarning>
       {/* Desktop Sidebar */}
       <aside className="hidden md:block">
         <Sidebar />

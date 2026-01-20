@@ -1,30 +1,37 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Plus, Lock, Edit, Trash2 } from "lucide-react"
+import { MoreHorizontal, Plus, Lock, Edit, Trash2, Eye, MapPin, Calendar, Ruler, FileText, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { canWriteClient, isAuditorClient } from "@/lib/supabase/roles"
 import { AddCropDialog } from "@/components/dashboard/add-crop-dialog"
 import type { Crop } from "@/lib/supabase/types"
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  growing: { label: "Growing", variant: "default" },
-  harvested: { label: "Harvested", variant: "secondary" },
-  planned: { label: "Planned", variant: "outline" },
-  issue: { label: "Issue", variant: "destructive" },
+  growing: { label: "Groeiend", variant: "default" },
+  harvested: { label: "Geoogst", variant: "secondary" },
+  planned: { label: "Gepland", variant: "outline" },
+  issue: { label: "Probleem", variant: "destructive" },
 }
 
 export function CropTable() {
+  const router = useRouter()
   const [crops, setCrops] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
   const [canWrite, setCanWrite] = useState(true)
   const [isReadOnly, setIsReadOnly] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [monitorDialogOpen, setMonitorDialogOpen] = useState(false)
+  const [monitoringCrop, setMonitoringCrop] = useState<Crop | null>(null)
   const [editingCrop, setEditingCrop] = useState<Crop | null>(null)
+  const [viewingCrop, setViewingCrop] = useState<Crop | null>(null)
 
   const fetchCrops = async () => {
     try {
@@ -98,8 +105,20 @@ export function CropTable() {
     }
   }
 
+  const handleMonitorCrop = (crop: Crop) => {
+    setMonitoringCrop(crop)
+    setMonitorDialogOpen(true)
+  }
+
+  const handleViewDetails = (crop: Crop) => {
+    setViewingCrop(crop)
+    setDialogOpen(true)
+  }
+
   const handleDialogSuccess = () => {
     fetchCrops()
+    setEditingCrop(null)
+    setViewingCrop(null)
   }
   if (loading) {
     return (
@@ -108,10 +127,10 @@ export function CropTable() {
           <div />
           <Button size="sm" className="bg-agri-green hover:bg-agri-green-dark text-white" disabled>
             <Plus size={16} className="mr-2" />
-            Add Crop
+            Gewas Toevoegen
           </Button>
         </div>
-        <div className="border rounded-lg bg-card p-8 text-center text-muted-foreground">Loading crops...</div>
+        <div className="border rounded-lg bg-card p-8 text-center text-muted-foreground">Gewassen laden...</div>
       </div>
     )
   }
@@ -130,36 +149,227 @@ export function CropTable() {
           size="sm"
           className="bg-agri-green hover:bg-agri-green-dark text-white"
           disabled={!canWrite}
-          onClick={handleAddCrop}
+          onClick={(e) => {
+            e.preventDefault()
+            handleAddCrop()
+          }}
           title={!canWrite ? "Je hebt geen rechten om crops toe te voegen" : ""}
         >
           <Plus size={16} className="mr-2" />
-          Add Crop
+          Gewas Toevoegen
         </Button>
       </div>
 
       <AddCropDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) {
+            setEditingCrop(null)
+            setViewingCrop(null)
+          }
+        }}
         onSuccess={handleDialogSuccess}
-        cropToEdit={editingCrop}
+        cropToEdit={editingCrop || viewingCrop}
+        viewOnly={!!viewingCrop && !editingCrop}
       />
+
+      {/* Crop Monitor Dialog */}
+      <Dialog open={monitorDialogOpen} onOpenChange={setMonitorDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-agri-green" />
+              Monitor: {monitoringCrop?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Bekijk de monitoring informatie voor dit gewas
+            </DialogDescription>
+          </DialogHeader>
+          {monitoringCrop && (
+            <div className="space-y-4">
+              {/* Basic Information */}
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Locatie</p>
+                      <p className="font-medium flex items-center gap-2">
+                        <MapPin size={16} className="text-agri-green" />
+                        {monitoringCrop.location}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Status</p>
+                      <Badge
+                        variant={
+                          monitoringCrop.status === "growing"
+                            ? "default"
+                            : monitoringCrop.status === "harvested"
+                              ? "secondary"
+                              : monitoringCrop.status === "planned"
+                                ? "outline"
+                                : "destructive"
+                        }
+                        className={
+                          monitoringCrop.status === "growing" ? "bg-agri-green text-white hover:bg-agri-green" : ""
+                        }
+                      >
+                        {statusConfig[monitoringCrop.status]?.label || monitoringCrop.status}
+                      </Badge>
+                    </div>
+                    {monitoringCrop.variety && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Variëteit</p>
+                        <p className="font-medium">{monitoringCrop.variety}</p>
+                      </div>
+                    )}
+                    {monitoringCrop.area_hectares && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Oppervlakte</p>
+                        <p className="font-medium flex items-center gap-2">
+                          <Ruler size={16} className="text-muted-foreground" />
+                          {monitoringCrop.area_hectares} hectare
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Dates */}
+              {(monitoringCrop.planted_at || monitoringCrop.expected_harvest) && (
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <Calendar size={16} className="text-agri-green" />
+                      Tijdlijn
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      {monitoringCrop.planted_at && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Geplant Op</p>
+                          <p className="font-medium">
+                            {new Date(monitoringCrop.planted_at).toLocaleDateString("nl-NL", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      )}
+                      {monitoringCrop.expected_harvest && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Verwachte Oogst</p>
+                          <p className="font-medium">
+                            {new Date(monitoringCrop.expected_harvest).toLocaleDateString("nl-NL", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Coordinates */}
+              {(monitoringCrop.latitude && monitoringCrop.longitude) && (
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <MapPin size={16} className="text-agri-green" />
+                      Coördinaten
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Breedtegraad</p>
+                        <p className="font-mono text-sm">{monitoringCrop.latitude}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Lengtegraad</p>
+                        <p className="font-mono text-sm">{monitoringCrop.longitude}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setMonitorDialogOpen(false)
+                          router.push(`/dashboard/map?crop=${monitoringCrop.id}`)
+                        }}
+                        className="ml-auto"
+                      >
+                        <MapPin size={14} className="mr-2" />
+                        Bekijk op Kaart
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Notes */}
+              {monitoringCrop.notes && (
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <FileText size={16} className="text-agri-green" />
+                      Notities
+                    </p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{monitoringCrop.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setMonitorDialogOpen(false)
+                    handleEditCrop(monitoringCrop)
+                  }}
+                  disabled={!canWrite}
+                >
+                  <Edit size={14} className="mr-2" />
+                  Bewerken
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setMonitorDialogOpen(false)
+                    router.push(`/dashboard/map?crop=${monitoringCrop.id}`)
+                  }}
+                >
+                  <MapPin size={14} className="mr-2" />
+                  Bekijk op Kaart
+                </Button>
+                <Button onClick={() => setMonitorDialogOpen(false)} className="bg-agri-green hover:bg-agri-green-dark text-white">
+                  Sluiten
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="border rounded-lg bg-card">
         {crops.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
-            No crops found. Click "Add Crop" to get started.
+            Geen gewassen gevonden. Klik op "Gewas Toevoegen" om te beginnen.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[150px]">Action</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Naam</TableHead>
+                  <TableHead>Locatie</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[150px]">Acties</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {crops.map((crop) => {
                 const status = statusConfig[crop.status] || statusConfig.growing
@@ -177,7 +387,15 @@ export function CropTable() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="link" size="sm" className="text-agri-blue p-0 h-auto">
+                        <Button 
+                          variant="link" 
+                          size="sm" 
+                          className="text-agri-blue p-0 h-auto hover:underline"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            handleMonitorCrop(crop)
+                          }}
+                        >
                           Monitor
                         </Button>
                         <DropdownMenu>
@@ -186,25 +404,40 @@ export function CropTable() {
                               <MoreHorizontal size={16} />
                             </Button>
                           </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            disabled={!canWrite}
-                            onClick={() => handleEditCrop(crop)}
-                            className="cursor-pointer"
-                          >
-                            <Edit size={14} className="mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer">View Details</DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive cursor-pointer"
-                            disabled={!canWrite}
-                            onClick={() => handleDeleteCrop(crop.id)}
-                          >
-                            <Trash2 size={14} className="mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleViewDetails(crop)
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Eye size={14} className="mr-2" />
+                              Bekijk Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!canWrite}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleEditCrop(crop)
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Edit size={14} className="mr-2" />
+                              Bewerken
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive cursor-pointer"
+                              disabled={!canWrite}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleDeleteCrop(crop.id)
+                              }}
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              Verwijderen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
                     </TableCell>
@@ -212,7 +445,8 @@ export function CropTable() {
                 )
               })}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         )}
       </div>
     </div>

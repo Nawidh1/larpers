@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Download, Loader2 } from "lucide-react"
+import { Download, Loader2, FileSpreadsheet, AlertCircle } from "lucide-react"
 import { isAuditorClient, isAdminClient } from "@/lib/supabase/roles"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -11,6 +10,7 @@ export function TransactionExportButton() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
+  const [success, setSuccess] = useState(false)
 
   // Check if user is auditor or admin
   useEffect(() => {
@@ -19,7 +19,6 @@ export function TransactionExportButton() {
         const auditor = await isAuditorClient()
         const admin = await isAdminClient()
         const authorized = auditor || admin
-        console.log("Authorization check:", { auditor, admin, authorized })
         setIsAuthorized(authorized)
       } catch (err) {
         console.error("Error checking authorization:", err)
@@ -32,35 +31,69 @@ export function TransactionExportButton() {
   const handleExport = async () => {
     setLoading(true)
     setError(null)
+    setSuccess(false)
 
     try {
       const response = await fetch("/api/transactions/export")
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Export failed" }))
-        throw new Error(errorData.error || "Export failed")
+        // Try to get error message from response
+        let errorMessage = "Export mislukt"
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
-      // Get filename from Content-Disposition header or use default
+      // Check if response is CSV (should start with BOM or CSV content)
+      const contentType = response.headers.get("Content-Type")
+      if (!contentType || !contentType.includes("csv")) {
+        // Try to parse as JSON error
+        try {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Ongeldig bestandsformaat ontvangen")
+        } catch {
+          throw new Error("Ongeldig bestandsformaat ontvangen")
+        }
+      }
+
+      // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get("Content-Disposition")
       let filename = "transacties-export.csv"
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-        if (filenameMatch) {
-          filename = filenameMatch[1]
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, "")
         }
       }
 
       // Create blob and download
       const blob = await response.blob()
+      
+      // Verify blob is not empty
+      if (blob.size === 0) {
+        throw new Error("Leeg bestand ontvangen")
+      }
+
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
       a.download = filename
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      }, 100)
+
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
       console.error("Error exporting transactions:", err)
       setError(err.message || "Er is een fout opgetreden bij het exporteren van de transacties")
@@ -69,49 +102,55 @@ export function TransactionExportButton() {
     }
   }
 
-  // Always show the component, but disable button if not authorized
-  // The API will handle the actual authorization check
+  // Don't show button if not authorized
+  if (isAuthorized === false) {
+    return (
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription className="text-xs">
+          Export is alleen beschikbaar voor auditors en admins
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
     <div className="space-y-2">
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="py-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">{error}</AlertDescription>
         </Alert>
       )}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-lg">Jaarrekening Export</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Exporteer alle financiële transacties naar CSV-formaat voor jaarrekening doeleinden
-                {isAuthorized === false && (
-                  <span className="block mt-1 text-xs text-destructive">
-                    Alleen beschikbaar voor auditors en admins
-                  </span>
-                )}
-              </p>
-            </div>
-            <Button 
-              onClick={handleExport} 
-              disabled={loading || isAuthorized === false} 
-              className="bg-agri-green hover:bg-agri-green-dark text-white disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Exporteren...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Exporteer naar CSV
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {success && (
+        <Alert className="py-2 border-green-500 bg-green-50">
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-xs text-green-800">
+            Export succesvol gedownload!
+          </AlertDescription>
+        </Alert>
+      )}
+      <Button 
+        onClick={handleExport} 
+        disabled={loading || isAuthorized === null} 
+        className="w-full bg-agri-green hover:bg-agri-green-dark text-white disabled:opacity-50 disabled:cursor-not-allowed"
+        size="sm"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Exporteren...
+          </>
+        ) : (
+          <>
+            <Download className="mr-2 h-4 w-4" />
+            Exporteer naar CSV
+          </>
+        )}
+      </Button>
+      <p className="text-xs text-muted-foreground text-center">
+        Download alle transacties voor jaarrekening
+      </p>
     </div>
   )
 }

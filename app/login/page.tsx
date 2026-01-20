@@ -105,7 +105,9 @@ export default function LoginPage() {
       if (err.message) {
         errorMessage = err.message
         // Handle specific Supabase errors
-        if (err.message.includes("Invalid login credentials") || err.message.includes("Invalid credentials")) {
+        if (err.message.includes("Supabase not configured")) {
+          errorMessage = "Supabase is not configured. Please use 'Continue with Demo Mode' to explore the dashboard, or configure Supabase in .env.local for full functionality."
+        } else if (err.message.includes("Invalid login credentials") || err.message.includes("Invalid credentials")) {
           errorMessage = "Invalid email or password. Don't have an account? Click 'Sign Up' to create one."
         } else if (err.message.includes("Email rate limit exceeded")) {
           errorMessage = "Too many requests. Please try again later."

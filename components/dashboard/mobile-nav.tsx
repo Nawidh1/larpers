@@ -26,7 +26,7 @@ export function MobileNav() {
   return (
     <>
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border h-20 flex items-center justify-between px-4 shadow-sm">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border h-20 flex items-center justify-between px-4 shadow-sm" suppressHydrationWarning>
         <Logo />
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -67,7 +67,7 @@ export function MobileNav() {
       </div>
 
       {/* Spacer for mobile header */}
-      <div className="md:hidden h-20" />
+      <div className="md:hidden h-20" suppressHydrationWarning />
     </>
   )
 }

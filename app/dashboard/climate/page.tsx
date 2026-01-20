@@ -3,8 +3,8 @@ import { StatCard } from "@/components/dashboard/stat-card"
 import { TemperatureChart } from "@/components/dashboard/charts/temperature-chart"
 import { RainfallChart } from "@/components/dashboard/charts/rainfall-chart"
 import { ClimateTimelineChart } from "@/components/dashboard/charts/climate-timeline-chart"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Sun, Droplets, CloudRain, AlertTriangle } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Sun, Droplets, CloudRain, AlertTriangle, Thermometer } from "lucide-react"
 import { getLatestClimateData } from "@/lib/supabase/queries"
 
 export default async function ClimatePage() {
@@ -19,51 +19,72 @@ export default async function ClimatePage() {
     : "N/A"
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" suppressHydrationWarning>
       <Header title="Climate Insights" />
 
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6 overflow-auto" suppressHydrationWarning>
         {/* Climate Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard title="Current Weather" value={temperature} icon={<Sun size={32} className="text-agri-yellow" />} />
-          <StatCard title="Humidity" value={humidity} icon={<Droplets size={32} className="text-agri-blue" />} />
-          <StatCard title="Rainfall" value={rainfall} icon={<CloudRain size={32} className="text-agri-blue" />} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          <StatCard 
+            title="Huidige Temperatuur" 
+            value={temperature} 
+            icon={<Thermometer size={32} className="text-agri-yellow" />} 
+          />
+          <StatCard 
+            title="Luchtvochtigheid" 
+            value={humidity} 
+            icon={<Droplets size={32} className="text-agri-blue" />} 
+          />
+          <StatCard 
+            title="Neerslag" 
+            value={rainfall} 
+            icon={<CloudRain size={32} className="text-agri-blue" />} 
+          />
         </div>
 
         {/* D3.js Timeline Chart - Last 30 Days */}
-        <ClimateTimelineChart />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Klimaat Overzicht</CardTitle>
+            <CardDescription>Bekijk het klimaat over de afgelopen 30 dagen</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ClimateTimelineChart />
+          </CardContent>
+        </Card>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <TemperatureChart />
           <RainfallChart />
         </div>
 
         {/* Climate Advisory */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <AlertTriangle size={18} className="text-agri-yellow" />
-              Climate Advisory
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle size={20} className="text-amber-500" />
+              Klimaat Advies
             </CardTitle>
+            <CardDescription>Belangrijke klimaatwaarschuwingen en aanbevelingen</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                <AlertTriangle size={18} className="text-agri-yellow mt-0.5" />
+            <div className="space-y-3" suppressHydrationWarning>
+              <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-900/50">
+                <AlertTriangle size={20} className="text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">Rain Expected</p>
-                  <p className="text-sm text-muted-foreground">
-                    Consider irrigation adjustments for expected rain in the coming days
+                  <p className="text-sm font-semibold mb-1 text-amber-900 dark:text-amber-100">Regen Verwacht</p>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Overweeg irrigatie aanpassingen voor verwachte regen in de komende dagen
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                <Sun size={18} className="text-agri-yellow mt-0.5" />
+              <div className="flex items-start gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-900/50">
+                <Sun size={20} className="text-orange-600 dark:text-orange-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">High Temperature Alert</p>
-                  <p className="text-sm text-muted-foreground">
-                    Temperatures above 30°C expected this week. Ensure adequate watering.
+                  <p className="text-sm font-semibold mb-1 text-orange-900 dark:text-orange-100">Hoge Temperatuur Waarschuwing</p>
+                  <p className="text-sm text-orange-800 dark:text-orange-200">
+                    Temperaturen boven 30°C verwacht deze week. Zorg voor voldoende water.
                   </p>
                 </div>
               </div>

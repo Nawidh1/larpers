@@ -71,13 +71,13 @@ export function Header({ title, children }: HeaderProps) {
   }
 
   return (
-    <header className="h-20 md:h-24 border-b border-border bg-card flex items-center justify-between px-4 md:px-6 shadow-sm" style={{ minHeight: '80px' }}>
+    <header className="h-20 md:h-24 border-b border-border bg-card flex items-center justify-between px-4 md:px-6 shadow-sm" style={{ minHeight: '80px' }} suppressHydrationWarning>
       <h1 className="text-xl md:text-2xl font-semibold text-foreground">{title}</h1>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" suppressHydrationWarning>
         {children}
 
-        <div className="flex items-center gap-2 ml-2 pl-2 md:pl-4 border-l border-border">
+        <div className="flex items-center gap-2 ml-2 pl-2 md:pl-4 border-l border-border" suppressHydrationWarning>
           <NotificationsDropdown />
 
           {mounted && (

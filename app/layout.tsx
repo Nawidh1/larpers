@@ -13,13 +13,6 @@ export const metadata: Metadata = {
   description: "Smart agricultural management dashboard for crop monitoring, finance tracking, and climate insights",
   generator: "v0.app",
   manifest: "/manifest.json",
-  themeColor: "#22c55e",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
   icons: {
     icon: [
       {
@@ -44,6 +37,14 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#22c55e",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -52,7 +53,116 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased`} suppressHydrationWarning>
-        {children}
+        {/* Remove browser extension attributes BEFORE React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const removeExtensionAttributes = () => {
+                  try {
+                    const elements = document.querySelectorAll('[bis_skin_checked]');
+                    elements.forEach(el => {
+                      try {
+                        el.removeAttribute('bis_skin_checked');
+                      } catch(e) {}
+                    });
+                  } catch(e) {}
+                };
+                
+                // Run immediately - before anything else
+                if (document.documentElement) {
+                  removeExtensionAttributes();
+                }
+                
+                // Run as soon as body exists
+                const checkBody = setInterval(() => {
+                  if (document.body) {
+                    removeExtensionAttributes();
+                    clearInterval(checkBody);
+                  }
+                }, 0);
+                
+                // Use requestAnimationFrame to continuously remove attributes
+                // This ensures we catch attributes added right before React hydrates
+                let frameCount = 0;
+                const maxFrames = 120; // Run for ~2 seconds at 60fps
+                const continuousCleanup = () => {
+                  removeExtensionAttributes();
+                  frameCount++;
+                  if (frameCount < maxFrames) {
+                    requestAnimationFrame(continuousCleanup);
+                  }
+                };
+                if (typeof requestAnimationFrame !== 'undefined') {
+                  requestAnimationFrame(continuousCleanup);
+                }
+                
+                // Also run when DOM is ready
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', removeExtensionAttributes);
+                } else {
+                  removeExtensionAttributes();
+                }
+                
+                // Run on every page load/reload
+                window.addEventListener('load', removeExtensionAttributes);
+                
+                // Use MutationObserver to continuously remove attributes added by extensions
+                if (typeof MutationObserver !== 'undefined') {
+                  const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                      if (mutation.type === 'attributes' && mutation.attributeName === 'bis_skin_checked') {
+                        try {
+                          mutation.target.removeAttribute('bis_skin_checked');
+                        } catch(e) {}
+                      } else if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach((node) => {
+                          if (node.nodeType === 1) {
+                            try {
+                              if (node.hasAttribute && node.hasAttribute('bis_skin_checked')) {
+                                node.removeAttribute('bis_skin_checked');
+                              }
+                              const children = node.querySelectorAll && node.querySelectorAll('[bis_skin_checked]');
+                              if (children) {
+                                children.forEach(el => {
+                                  try {
+                                    el.removeAttribute('bis_skin_checked');
+                                  } catch(e) {}
+                                });
+                              }
+                            } catch(e) {}
+                          }
+                        });
+                      }
+                    });
+                  });
+                  
+                  const startObserving = () => {
+                    if (document.body) {
+                      try {
+                        observer.observe(document.body, {
+                          attributes: true,
+                          attributeFilter: ['bis_skin_checked'],
+                          childList: true,
+                          subtree: true
+                        });
+                      } catch(e) {}
+                    }
+                  };
+                  
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', startObserving);
+                  } else {
+                    startObserving();
+                  }
+                }
+              })();
+            `,
+          }}
+        />
+        <div suppressHydrationWarning>
+          {children}
+        </div>
         <Analytics />
         <ServiceWorkerRegistration />
       </body>

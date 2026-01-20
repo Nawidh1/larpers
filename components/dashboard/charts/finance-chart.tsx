@@ -71,7 +71,7 @@ export function FinanceChart() {
           <CardTitle className="text-base font-medium">Balance Over Time</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">Loading...</div>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground" suppressHydrationWarning>Loading...</div>
         </CardContent>
       </Card>
     )
@@ -84,7 +84,7 @@ export function FinanceChart() {
           <CardTitle className="text-base font-medium">Balance Over Time</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground" suppressHydrationWarning>
             No balance data available. Add transactions to see the chart.
           </div>
         </CardContent>
@@ -98,7 +98,7 @@ export function FinanceChart() {
         <CardTitle className="text-base font-medium">Balance Over Time</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px]">
+        <div className="h-[200px]" suppressHydrationWarning>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />

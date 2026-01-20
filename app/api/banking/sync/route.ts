@@ -40,10 +40,48 @@ export async function POST(request: NextRequest) {
     // 5. Update account balance
 
     if (account.provider === "manual") {
-      return NextResponse.json(
-        { error: "Manual accounts cannot be synced via API" },
-        { status: 400 }
-      )
+      // For manual accounts, calculate balance from transactions
+      const { data: transactions, error: transactionsError } = await supabase
+        .from("transactions")
+        .select("amount, type, status")
+        .eq("user_id", user.id)
+        .eq("bank_account_id", accountId)
+        .eq("status", "completed")
+
+      if (transactionsError) {
+        console.error("Error fetching transactions for balance:", transactionsError)
+        return NextResponse.json(
+          { error: "Failed to calculate balance from transactions" },
+          { status: 500 }
+        )
+      }
+
+      const balance = transactions?.reduce((sum, t) => {
+        const amount = Number(t.amount)
+        return sum + (t.type === "income" ? amount : -amount)
+      }, 0) || 0
+
+      // Update bank account balance and sync time
+      const { error: updateError } = await supabase
+        .from("bank_accounts")
+        .update({ 
+          balance,
+          last_synced_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", accountId)
+
+      if (updateError) {
+        return NextResponse.json({ error: "Failed to update balance" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Balance updated from transactions",
+        syncedAt: new Date().toISOString(),
+        balance,
+        transactionsCount: transactions?.length || 0,
+      })
     }
 
     // Simulate API call delay

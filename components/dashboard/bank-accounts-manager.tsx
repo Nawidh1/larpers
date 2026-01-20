@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +16,7 @@ import { CreditCard, Plus, RefreshCw, Trash2, Link2 as LinkIcon, CheckCircle2 } 
 import type { BankAccount } from "@/lib/supabase/types"
 
 export function BankAccountsManager() {
+  const router = useRouter()
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -74,15 +76,29 @@ export function BankAccountsManager() {
         body: JSON.stringify({ accountId }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Sync failed")
+        throw new Error(data.error || "Sync failed")
       }
 
-      // Refresh accounts and transactions
-      fetchAccounts()
-      // Trigger page refresh to update transactions
-      window.location.reload()
+      // Show success message
+      if (data.balance !== undefined) {
+        const balanceText = `€${data.balance.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        const transactionsText = data.transactionsCount > 0 
+          ? `${data.transactionsCount} transactie${data.transactionsCount !== 1 ? 's' : ''}`
+          : "geen transacties"
+        alert(`Saldo bijgewerkt: ${balanceText}\nGebaseerd op ${transactionsText}`)
+      } else {
+        alert("Account gesynchroniseerd!")
+      }
+
+      // Refresh accounts to show updated data
+      await fetchAccounts()
+      
+      // Use router.refresh() instead of full page reload to preserve design state
+      // This refreshes server components without losing client-side state
+      router.refresh()
     } catch (err: any) {
       console.error("Error syncing:", err)
       alert(err.message || "Fout bij synchroniseren")
@@ -141,7 +157,7 @@ export function BankAccountsManager() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="p-8 text-center text-muted-foreground">Laden...</div>
+          <div className="p-8 text-center text-muted-foreground" suppressHydrationWarning>Laden...</div>
         </CardContent>
       </Card>
     )

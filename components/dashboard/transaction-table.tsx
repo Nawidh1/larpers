@@ -68,12 +68,11 @@ export function TransactionTable() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-3" suppressHydrationWarning>
+      <div className="flex items-center justify-between" suppressHydrationWarning>
         <div>
-          <h3 className="font-semibold">Transactions</h3>
           {isReadOnly && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <Lock size={12} />
               <span>Alleen-lezen modus</span>
             </div>
@@ -81,7 +80,7 @@ export function TransactionTable() {
         </div>
         <div className="flex items-center gap-2">
           <Select defaultValue="all">
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
@@ -91,19 +90,24 @@ export function TransactionTable() {
               <SelectItem value="this-year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" onClick={fetchTransactions} disabled={loading}>
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          <Button variant="outline" size="icon" onClick={fetchTransactions} disabled={loading} className="h-8 w-8">
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </Button>
         </div>
       </div>
 
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-hidden" suppressHydrationWarning>
         {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading transactions...</div>
+          <div className="p-6 text-center text-muted-foreground text-sm" suppressHydrationWarning>
+            Transacties laden...
+          </div>
         ) : transactions.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No transactions found. Add your first transaction to get started.</div>
+          <div className="p-6 text-center text-muted-foreground text-sm" suppressHydrationWarning>
+            Geen transacties gevonden. Voeg je eerste transactie toe om te beginnen.
+          </div>
         ) : (
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -139,6 +143,7 @@ export function TransactionTable() {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
     </div>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Thermometer } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 interface TempData {
@@ -39,7 +40,7 @@ export function TemperatureChart() {
           const monthlyData: Record<string, { total: number; count: number }> = {}
           climateData.forEach((c) => {
             const date = new Date(c.recorded_at)
-            const monthKey = date.toLocaleDateString("en-US", { month: "short" })
+            const monthKey = date.toLocaleDateString("nl-NL", { month: "short" })
             if (!monthlyData[monthKey]) {
               monthlyData[monthKey] = { total: 0, count: 0 }
             }
@@ -51,7 +52,7 @@ export function TemperatureChart() {
 
           const chartData = Object.entries(monthlyData)
             .map(([month, { total, count }]) => ({
-              month,
+              month: month.charAt(0).toUpperCase() + month.slice(1),
               temp: Math.round(total / count),
             }))
             .slice(-7) // Last 7 months
@@ -70,11 +71,17 @@ export function TemperatureChart() {
   if (loading) {
     return (
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Temperature</CardTitle>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Thermometer className="h-5 w-5 text-amber-500" />
+            Temperatuur Overzicht
+          </CardTitle>
+          <CardDescription>Gemiddelde temperatuur per maand</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[180px] flex items-center justify-center text-muted-foreground">Loading...</div>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm" suppressHydrationWarning>
+            Temperatuurdata laden...
+          </div>
         </CardContent>
       </Card>
     )
@@ -83,12 +90,16 @@ export function TemperatureChart() {
   if (data.length === 0) {
     return (
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Temperature</CardTitle>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Thermometer className="h-5 w-5 text-amber-500" />
+            Temperatuur Overzicht
+          </CardTitle>
+          <CardDescription>Gemiddelde temperatuur per maand</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[180px] flex items-center justify-center text-muted-foreground">
-            No temperature data available. Add climate records to see the chart.
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm" suppressHydrationWarning>
+            Geen temperatuurdata beschikbaar. Voeg klimaatrecords toe om de grafiek te zien.
           </div>
         </CardContent>
       </Card>
@@ -101,30 +112,48 @@ export function TemperatureChart() {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Temperature</CardTitle>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <Thermometer className="h-5 w-5 text-amber-500" />
+          Temperatuur Overzicht
+        </CardTitle>
+        <CardDescription>Gemiddelde temperatuur per maand</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[180px]">
+        <div className="h-[200px]" suppressHydrationWarning>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#6b7280" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#6b7280" }} domain={domain} />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fill: "#6b7280" }} 
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fill: "#6b7280" }} 
+                domain={domain}
+                tickFormatter={(value) => `${value}°C`}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#fff",
                   border: "1px solid #e5e7eb",
                   borderRadius: "8px",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                 }}
-                formatter={(value) => [`${value}°C`, "Temperature"]}
+                formatter={(value) => [`${value}°C`, "Temperatuur"]}
+                labelStyle={{ fontWeight: 600, marginBottom: 4 }}
               />
               <Line
                 type="monotone"
                 dataKey="temp"
-                stroke="#2563eb"
-                strokeWidth={2}
-                dot={{ fill: "#2563eb", strokeWidth: 2, r: 3 }}
+                stroke="#f59e0b"
+                strokeWidth={2.5}
+                dot={{ fill: "#f59e0b", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: "#f59e0b" }}
               />
             </LineChart>
           </ResponsiveContainer>

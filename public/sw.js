@@ -1,9 +1,9 @@
 // Service Worker for offline support and caching
 // Optimized for low-connectivity areas in Belize
 
-const CACHE_NAME = 'agritech-v1'
-const STATIC_CACHE = 'agritech-static-v1'
-const API_CACHE = 'agritech-api-v1'
+const CACHE_NAME = 'agritech-v2'
+const STATIC_CACHE = 'agritech-static-v2'
+const API_CACHE = 'agritech-api-v2'
 
 // Assets to cache immediately
 const STATIC_ASSETS = [

@@ -19,8 +19,8 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 bg-card border-r border-border h-screen flex flex-col hidden md:flex">
-      <div className="p-4 border-b border-border">
+    <aside className="w-64 bg-card border-r border-border h-screen flex flex-col hidden md:flex" suppressHydrationWarning>
+      <div className="p-4 border-b border-border" suppressHydrationWarning>
         <Logo />
       </div>
 
@@ -46,7 +46,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border" suppressHydrationWarning>
         <Link
           href="/dashboard/settings"
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
