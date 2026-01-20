@@ -71,16 +71,16 @@ export function Header({ title, children }: HeaderProps) {
   }
 
   return (
-    <header className="h-20 md:h-24 border-b border-border bg-card flex items-center justify-between px-4 md:px-6 shadow-sm" style={{ minHeight: '80px' }} suppressHydrationWarning>
+    <header className="h-20 md:h-24 min-h-[80px] border-b border-border bg-card flex items-center justify-between px-4 md:px-6 shadow-sm">
       <h1 className="text-xl md:text-2xl font-semibold text-foreground">{title}</h1>
 
-      <div className="flex items-center gap-3" suppressHydrationWarning>
+      <div className="flex items-center gap-3">
         {children}
 
-        <div className="flex items-center gap-2 ml-2 pl-2 md:pl-4 border-l border-border" suppressHydrationWarning>
+        <div className="flex items-center gap-2 ml-2 pl-2 md:pl-4 border-l border-border">
           <NotificationsDropdown />
 
-          {mounted && (
+          {mounted ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-1 md:gap-2 px-1 md:px-2">
@@ -108,23 +108,15 @@ export function Header({ title, children }: HeaderProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          {!mounted && (
-            <div className="flex items-center gap-1 md:gap-2 px-1 md:px-2">
+          ) : (
+            <Button variant="ghost" className="flex items-center gap-1 md:gap-2 px-1 md:px-2" disabled>
               <Avatar className="h-7 w-7 md:h-8 md:w-8">
                 <AvatarImage src="/farmer-avatar.png" />
-                <AvatarFallback className="bg-agri-green text-white text-xs md:text-sm">
-                  {userName
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2) || "U"}
-                </AvatarFallback>
+                <AvatarFallback className="bg-agri-green text-white text-xs md:text-sm">U</AvatarFallback>
               </Avatar>
-              <span className="text-xs md:text-sm font-medium hidden md:inline">{userName}</span>
+              <span className="text-xs md:text-sm font-medium hidden md:inline">User</span>
               <ChevronDown size={14} className="hidden md:block md:w-4 md:h-4" />
-            </div>
+            </Button>
           )}
         </div>
       </div>

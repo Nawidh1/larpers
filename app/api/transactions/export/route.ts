@@ -41,7 +41,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No transactions found" }, { status: 404 })
     }
 
-    // Generate CSV content
+    // Calculate summary statistics
+    const income = transactions.filter((t) => t.type === "income" && t.status === "completed")
+    const expenses = transactions.filter((t) => t.type === "expense" && t.status === "completed")
+    const totalIncome = income.reduce((sum, t) => sum + Number(t.amount), 0)
+    const totalExpenses = expenses.reduce((sum, t) => sum + Number(t.amount), 0)
+    const net = totalIncome - totalExpenses
+
+    // Build CSV with summary section
+    const rows: string[][] = []
+    
+    // Header section
+    rows.push(["FINANCIËLE TRANSACTIES EXPORT"])
+    rows.push([`Gegenereerd op: ${new Date().toLocaleString("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`])
+    rows.push([]) // Empty row for spacing
+    
+    // Summary section
+    rows.push(["SAMENVATTING"])
+    rows.push(["Totale Inkomsten", `€${totalIncome.toFixed(2).replace(".", ",")}`])
+    rows.push(["Totale Uitgaven", `€${totalExpenses.toFixed(2).replace(".", ",")}`])
+    rows.push(["Netto Resultaat", `€${net.toFixed(2).replace(".", ",")}`])
+    rows.push(["Totaal Transacties", transactions.length.toString()])
+    rows.push(["Voltooide Transacties", `${income.length + expenses.length}`])
+    rows.push(["In behandeling", `${transactions.filter(t => t.status === "pending").length}`])
+    rows.push([]) // Empty row for spacing
+    
+    // Data headers
+    rows.push(["TRANSACTIES OVERZICHT"])
     const csvHeaders = [
       "ID",
       "Datum",
@@ -54,20 +80,13 @@ export async function GET(request: NextRequest) {
       "Externe Transactie ID",
       "Aangemaakt op",
     ]
+    rows.push(csvHeaders)
 
+    // Data rows
     const csvRows = transactions.map((tx) => {
-      const date = new Date(tx.date).toLocaleDateString("nl-NL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })
-      const created = new Date(tx.created_at).toLocaleDateString("nl-NL", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+      // Format dates as DD/MM/YYYY for Excel compatibility
+      const date = formatExcelDate(tx.date)
+      const created = formatExcelDateTime(tx.created_at)
 
       return [
         tx.id,
@@ -82,9 +101,18 @@ export async function GET(request: NextRequest) {
         created,
       ]
     })
+    rows.push(...csvRows)
 
-    // Combine headers and rows
-    const csvContent = [csvHeaders, ...csvRows].map((row) => row.map((field) => `"${field}"`).join(",")).join("\n")
+    // Combine all rows
+    // Use semicolon (;) as delimiter for Excel compatibility (Dutch Excel uses ; by default)
+    const delimiter = ";"
+    const csvContent = rows.map((row) => 
+      row.map((field) => {
+        const str = String(field)
+        // Always wrap in quotes for consistent Excel formatting
+        return `"${str.replace(/"/g, '""')}"`
+      }).join(delimiter)
+    ).join("\r\n") // Use \r\n for Windows Excel compatibility
 
     // Add BOM for Excel compatibility (UTF-8)
     const csvWithBom = "\uFEFF" + csvContent
@@ -113,10 +141,51 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Escape CSV field to handle commas, quotes, and newlines
+ * Escape CSV field to handle semicolons, quotes, and newlines
  */
 function escapeCsvField(field: string): string {
   if (!field) return ""
-  // Replace quotes with double quotes
-  return field.replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")
+  // Replace newlines with spaces, remove carriage returns
+  // Quotes will be escaped by wrapping function
+  return field.replace(/\n/g, " ").replace(/\r/g, "")
+}
+
+/**
+ * Format date to Excel-friendly format (DD/MM/YYYY)
+ */
+function formatExcelDate(dateString: string | Date): string {
+  if (!dateString) return ""
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ""
+    
+    const day = String(date.getDate()).padStart(2, "0")
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const year = date.getFullYear()
+    
+    return `${day}/${month}/${year}`
+  } catch {
+    return ""
+  }
+}
+
+/**
+ * Format date and time to Excel-friendly format (DD/MM/YYYY HH:MM)
+ */
+function formatExcelDateTime(dateString: string | Date): string {
+  if (!dateString) return ""
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ""
+    
+    const day = String(date.getDate()).padStart(2, "0")
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, "0")
+    const minutes = String(date.getMinutes()).padStart(2, "0")
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}`
+  } catch {
+    return ""
+  }
 }

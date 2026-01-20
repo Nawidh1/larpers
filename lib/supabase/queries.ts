@@ -1,5 +1,5 @@
 import { createClient } from "./server"
-import type { Crop, Transaction, ClimateData, CropGrowth } from "./types"
+import type { Crop, Transaction, ClimateData, CropGrowth, Report } from "./types"
 
 // Get current user ID
 export async function getCurrentUserId() {
@@ -64,21 +64,8 @@ export async function getTotalRevenue() {
 }
 
 export async function getTotalBalance() {
-  // Try to get balance from bank accounts first
-  try {
-    const { getTotalBankBalance } = await import("./banking")
-    const bankBalance = await getTotalBankBalance()
-    // Only use bank balance if there are actual accounts
-    const accounts = await getBankAccounts()
-    if (accounts.length > 0 && bankBalance !== 0) {
-      return bankBalance
-    }
-  } catch (err) {
-    // Fallback to transactions if banking module fails
-    console.warn("Could not get bank balance, using transactions:", err)
-  }
-  
-  // Calculate from transactions as fallback
+  // Always calculate from ALL transactions, not from bank account balances
+  // This ensures consistency and includes transactions without bank_account_id
   const transactions = await getTransactions()
   const completed = transactions.filter((t) => t.status === "completed")
   return completed.reduce((sum, t) => sum + Number(t.amount), 0)
@@ -322,4 +309,24 @@ export async function getCropGrowthChartData() {
     month,
     growth: Math.round(total / count),
   }))
+}
+
+// Reports queries
+export async function getReports() {
+  const userId = await getCurrentUserId()
+  if (!userId) return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("reports")
+    .select("*")
+    .eq("user_id", userId)
+    .order("generated_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching reports:", error)
+    return []
+  }
+
+  return (data as Report[]) || []
 }

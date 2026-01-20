@@ -1,24 +1,23 @@
 import { Header } from "@/components/dashboard/header"
 import { StatCard } from "@/components/dashboard/stat-card"
+import { RevenueCard } from "@/components/dashboard/revenue-card"
 import { FieldDetailsCard } from "@/components/dashboard/field-details-card"
 import { DroughtWarning } from "@/components/dashboard/drought-warning"
 import { ChartsWrapper } from "@/components/dashboard/charts-wrapper"
-import { Sprout, Euro, Sun, DollarSign } from "lucide-react"
-import { getCropCount, getTotalRevenue, getLatestClimateData, detectDroughtWarning, getTotalBalance } from "@/lib/supabase/queries"
+import { Sprout, Sun, DollarSign } from "lucide-react"
+import { getCropCount, getLatestClimateData, detectDroughtWarning, getTotalBalance } from "@/lib/supabase/queries"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 
 export default async function DashboardPage() {
-  const [cropCount, revenue, latestClimate, droughtWarning, balance] = await Promise.all([
+  const [cropCount, latestClimate, droughtWarning, balance] = await Promise.all([
     getCropCount(),
-    getTotalRevenue(),
     getLatestClimateData(),
     detectDroughtWarning(),
     getTotalBalance(),
   ])
 
   const temperature = latestClimate?.temperature ? `${Math.round(Number(latestClimate.temperature))}°C` : "N/A"
-  const revenueFormatted = `€${revenue.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const balanceFormatted = `€${balance.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   return (
@@ -36,11 +35,7 @@ export default async function DashboardPage() {
             value={`${cropCount} ${cropCount === 1 ? "Field" : "Fields"}`}
             icon={<Sprout size={32} className="text-agri-green" />}
           />
-          <StatCard
-            title="Revenue"
-            value={revenueFormatted}
-            icon={<Euro size={32} className="text-agri-blue" />}
-          />
+          <RevenueCard />
           <StatCard title="Climate Status" value={temperature} icon={<Sun size={32} className="text-agri-yellow" />} />
           <Link href="/dashboard/finance" className="block">
             <Card className="h-full hover:shadow-md transition-shadow cursor-pointer border-2 hover:border-agri-green">

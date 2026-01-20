@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     // 5. Update account balance
 
     if (account.provider === "manual") {
-      // For manual accounts, calculate balance from transactions
+      // For manual accounts, calculate balance from transactions linked to THIS account
+      // Note: This only updates the account balance, not the total balance
       const { data: transactions, error: transactionsError } = await supabase
         .from("transactions")
         .select("amount, type, status")
@@ -56,16 +57,17 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const balance = transactions?.reduce((sum, t) => {
-        const amount = Number(t.amount)
-        return sum + (t.type === "income" ? amount : -amount)
+      // Calculate balance for THIS account only
+      // Note: amount already includes sign (positive for income, negative for expense)
+      const accountBalance = transactions?.reduce((sum, t) => {
+        return sum + Number(t.amount)
       }, 0) || 0
 
       // Update bank account balance and sync time
       const { error: updateError } = await supabase
         .from("bank_accounts")
         .update({ 
-          balance,
+          balance: accountBalance,
           last_synced_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -77,10 +79,11 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: "Balance updated from transactions",
+        message: "Account balance updated from transactions",
         syncedAt: new Date().toISOString(),
-        balance,
+        balance: accountBalance,
         transactionsCount: transactions?.length || 0,
+        note: "This balance is only for this account. Total balance includes all transactions."
       })
     }
 

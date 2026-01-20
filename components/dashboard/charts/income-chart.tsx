@@ -62,15 +62,34 @@ export function IncomeChart() {
     }
 
     fetchIncomeData()
+
+    // Listen for custom event when transaction is added/updated/deleted
+    const handleTransactionChange = () => {
+      fetchIncomeData()
+    }
+    window.addEventListener("transaction-changed", handleTransactionChange)
+
+    return () => {
+      window.removeEventListener("transaction-changed", handleTransactionChange)
+    }
   }, [])
+  // Calculate total income for display
+  const totalIncome = data.length > 0 ? data.reduce((sum, d) => sum + d.income, 0) : 0
+  const avgIncome = data.length > 0 ? Math.round(totalIncome / data.length) : 0
+
   if (loading) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Income per Month</CardTitle>
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold text-foreground">Income per Month</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">Loading...</div>
+          <div className="h-[220px] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2563eb] border-t-transparent" />
+              <p className="text-sm text-muted-foreground">Loading chart data...</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -78,13 +97,33 @@ export function IncomeChart() {
 
   if (data.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Income per Month</CardTitle>
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold text-foreground">Income per Month</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            No income data available. Add income transactions to see the chart.
+          <div className="h-[220px] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2 text-center px-4">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-muted-foreground"
+                >
+                  <line x1="12" x2="12" y1="2" y2="22" />
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-foreground">No income data available</p>
+              <p className="text-xs text-muted-foreground">Add income transactions to see the chart</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -92,26 +131,89 @@ export function IncomeChart() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Income per Month</CardTitle>
+    <Card className="border-border/50 shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold text-foreground">Income per Month</CardTitle>
+          {data.length > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-[#2563eb]" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Avg: €{avgIncome.toLocaleString("nl-NL")}
+              </span>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px]">
+        <div className="h-[220px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280" }} />
+            <BarChart data={data} margin={{ top: 15, right: 15, left: 5, bottom: 5 }}>
+              <defs>
+                <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity={0.8} />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0.4} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#e5e7eb"
+                strokeOpacity={0.5}
+                className="stroke-muted"
+              />
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "#9ca3af", fontWeight: 500 }}
+                interval={0}
+                padding={{ left: 5, right: 5 }}
+                className="text-xs"
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "#9ca3af", fontWeight: 500 }}
+                width={50}
+                tickFormatter={(value) => {
+                  if (value >= 1000) return `€${(value / 1000).toFixed(1)}k`
+                  return `€${value}`
+                }}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#fff",
+                  backgroundColor: "rgba(255, 255, 255, 0.95)",
+                  backdropFilter: "blur(8px)",
                   border: "1px solid #e5e7eb",
                   borderRadius: "8px",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                  padding: "8px 12px",
                 }}
-                formatter={(value) => [`€${value}`, "Income"]}
+                labelStyle={{
+                  color: "#111827",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  marginBottom: "4px",
+                }}
+                itemStyle={{
+                  color: "#2563eb",
+                  fontWeight: 500,
+                  fontSize: "13px",
+                }}
+                formatter={(value: number) => [
+                  `€${value.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  "Income",
+                ]}
+                cursor={{ fill: "#2563eb", fillOpacity: 0.1 }}
               />
-              <Bar dataKey="income" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="income"
+                fill="url(#incomeGradient)"
+                radius={[6, 6, 0, 0]}
+                animationDuration={800}
+                animationEasing="ease-out"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

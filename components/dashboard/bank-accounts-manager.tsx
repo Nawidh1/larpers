@@ -64,9 +64,11 @@ export function BankAccountsManager() {
     }
   }
 
-  const handleSync = async (accountId: string) => {
+  const handleSync = async (accountId: string, silent = false) => {
     try {
-      setSyncingAccountId(accountId)
+      if (!silent) {
+        setSyncingAccountId(accountId)
+      }
       
       const response = await fetch("/api/banking/sync", {
         method: "POST",
@@ -82,15 +84,17 @@ export function BankAccountsManager() {
         throw new Error(data.error || "Sync failed")
       }
 
-      // Show success message
-      if (data.balance !== undefined) {
-        const balanceText = `€${data.balance.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        const transactionsText = data.transactionsCount > 0 
-          ? `${data.transactionsCount} transactie${data.transactionsCount !== 1 ? 's' : ''}`
-          : "geen transacties"
-        alert(`Saldo bijgewerkt: ${balanceText}\nGebaseerd op ${transactionsText}`)
-      } else {
-        alert("Account gesynchroniseerd!")
+      // Only show success message if not silent (manual sync)
+      if (!silent) {
+        if (data.balance !== undefined) {
+          const balanceText = `€${data.balance.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          const transactionsText = data.transactionsCount > 0 
+            ? `${data.transactionsCount} transactie${data.transactionsCount !== 1 ? 's' : ''}`
+            : "geen transacties"
+          alert(`Saldo bijgewerkt: ${balanceText}\nGebaseerd op ${transactionsText}`)
+        } else {
+          alert("Account gesynchroniseerd!")
+        }
       }
 
       // Refresh accounts to show updated data
@@ -98,14 +102,79 @@ export function BankAccountsManager() {
       
       // Use router.refresh() instead of full page reload to preserve design state
       // This refreshes server components without losing client-side state
-      router.refresh()
+      if (!silent) {
+        router.refresh()
+      }
     } catch (err: any) {
       console.error("Error syncing:", err)
-      alert(err.message || "Fout bij synchroniseren")
+      if (!silent) {
+        alert(err.message || "Fout bij synchroniseren")
+      }
     } finally {
-      setSyncingAccountId(null)
+      if (!silent) {
+        setSyncingAccountId(null)
+      }
     }
   }
+
+  // Listen for transaction changes to auto-sync ALL manual accounts
+  useEffect(() => {
+    const handleTransactionChange = async () => {
+      // Small delay to ensure transaction is saved first
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Fetch fresh accounts list and auto-sync all manual accounts
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { data: freshAccounts } = await supabase
+        .from("bank_accounts")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .eq("provider", "manual")
+
+      if (freshAccounts && freshAccounts.length > 0) {
+        // Sync all manual accounts in parallel
+        const syncPromises = freshAccounts.map(async (account) => {
+          try {
+            const response = await fetch("/api/banking/sync", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ accountId: account.id }),
+            })
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}))
+              throw new Error(errorData.error || `Sync failed for account ${account.id}`)
+            }
+            
+            return { success: true, accountId: account.id }
+          } catch (syncError) {
+            console.warn(`Failed to auto-sync bank account ${account.account_name}:`, syncError)
+            return { success: false, accountId: account.id }
+          }
+        })
+        
+        // Wait for all syncs to complete
+        await Promise.all(syncPromises)
+        
+        // Update accounts list once after all syncs
+        fetchAccounts()
+      }
+    }
+
+    window.addEventListener("transaction-changed", handleTransactionChange)
+    return () => {
+      window.removeEventListener("transaction-changed", handleTransactionChange)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async (accountId: string) => {
     if (!confirm("Weet je zeker dat je deze bankrekening wilt verwijderen?")) {

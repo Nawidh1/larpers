@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { isAuditorClient } from "@/lib/supabase/roles"
 import type { Crop } from "@/lib/supabase/types"
 import dynamic from "next/dynamic"
+import { RefreshCw } from "lucide-react"
 
 // Dynamically import Leaflet components (only in browser)
 const MapContainer = dynamic(() => import("react-leaflet").then((mod) => mod.MapContainer), { ssr: false })
@@ -28,24 +30,32 @@ interface FieldsMapProps {
 export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
   const [crops, setCrops] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedCropData, setSelectedCropData] = useState<Crop | null>(selectedCrop || null)
   const [isAuditor, setIsAuditor] = useState(false)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
+  const [mapKey, setMapKey] = useState(0) // Key to force map re-render
 
   // Initialize Leaflet only in browser
   useEffect(() => {
     if (typeof window !== "undefined") {
-      import("leaflet").then((L) => {
-        LeafletInstance = L.default
-        // Fix for default marker icons in Next.js
-        delete (L.default.Icon.Default.prototype as any)._getIconUrl
-        L.default.Icon.Default.mergeOptions({
-          iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-          iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-          shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+      import("leaflet")
+        .then((L) => {
+          LeafletInstance = L.default
+          // Fix for default marker icons in Next.js
+          delete (L.default.Icon.Default.prototype as any)._getIconUrl
+          L.default.Icon.Default.mergeOptions({
+            iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+            iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+            shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+          })
+          setLeafletLoaded(true)
         })
-        setLeafletLoaded(true)
-      })
+        .catch((err) => {
+          console.error("Error loading Leaflet:", err)
+          setError("Kaart bibliotheek kon niet worden geladen")
+          setLoading(false)
+        })
     }
   }, [])
 
@@ -61,6 +71,18 @@ export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
       setSelectedCropData(selectedCrop)
     }
   }, [selectedCrop])
+
+  // Refresh crops when component becomes visible or when needed
+  useEffect(() => {
+    if (leafletLoaded && !loading) {
+      // Refresh crops periodically or when window gains focus
+      const handleFocus = () => {
+        fetchCrops()
+      }
+      window.addEventListener("focus", handleFocus)
+      return () => window.removeEventListener("focus", handleFocus)
+    }
+  }, [leafletLoaded, loading])
 
   const checkAuditor = async () => {
     const auditor = await isAuditorClient()
@@ -99,6 +121,7 @@ export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
   const fetchCrops = async () => {
     try {
       setLoading(true)
+      setError(null)
       const supabase = createClient()
       const {
         data: { user },
@@ -106,6 +129,7 @@ export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
 
       if (!user) {
         setLoading(false)
+        setError("Je bent niet ingelogd")
         return
       }
 
@@ -121,15 +145,23 @@ export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
 
       if (error) {
         console.error("Error fetching crops:", error)
+        setError("Fout bij het laden van percelen")
+        // Keep existing crops visible if there's an error
+        return
       } else {
         // Filter crops that have coordinates
         const cropsWithCoords = (data as Crop[]).filter(
-          (crop) => crop.latitude !== null && crop.longitude !== null
+          (crop) => crop.latitude !== null && crop.longitude !== null && 
+                    !isNaN(Number(crop.latitude)) && !isNaN(Number(crop.longitude))
         )
         setCrops(cropsWithCoords)
+        // Force map re-render when crops change
+        setMapKey((prev) => prev + 1)
       }
     } catch (err) {
       console.error("Error:", err)
+      setError("Er is een fout opgetreden bij het laden van de kaart")
+      // Don't clear existing crops on error - keep them visible
     } finally {
       setLoading(false)
     }
@@ -157,15 +189,37 @@ export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
 
   const zoom = crops.length > 0 ? 10 : defaultZoom
 
-  if (loading || !leafletLoaded) {
+  // Show loading state only initially, not when refreshing
+  if (!leafletLoaded) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">Kaart laden...</CardContent>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-agri-green border-t-transparent" />
+            <p>Kaart bibliotheek laden...</p>
+          </div>
+        </CardContent>
       </Card>
     )
   }
 
-  if (crops.length === 0) {
+  // Show error state if there's an error and no crops
+  if (error && crops.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Percelen Kaart</CardTitle>
+        </CardHeader>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          <p className="text-destructive mb-2">{error}</p>
+          <p className="text-sm">Probeer de pagina te vernieuwen.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Show empty state only if we're not loading and have no crops
+  if (!loading && crops.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -183,11 +237,37 @@ export function FieldsMap({ selectedCrop, onCropSelect }: FieldsMapProps) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Percelen Kaart</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Percelen Kaart</CardTitle>
+            <div className="flex items-center gap-2">
+              {loading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-agri-green border-t-transparent" />
+                  <span>Bijwerken...</span>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchCrops}
+                disabled={loading || !leafletLoaded}
+                className="h-8 w-8"
+                title="Vernieuwen"
+              >
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              </Button>
+            </div>
+          </div>
+          {crops.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {crops.length} perceel{crops.length !== 1 ? "en" : ""} op de kaart
+            </p>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           <div className="h-[600px] w-full relative">
             <MapContainer
+              key={mapKey} // Force re-render when crops change
               center={center as [number, number]}
               zoom={zoom}
               style={{ height: "100%", width: "100%", zIndex: 0 }}

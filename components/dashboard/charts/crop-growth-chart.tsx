@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Area, AreaChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Sprout } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 interface GrowthData {
@@ -43,27 +44,39 @@ export function CropGrowthChart() {
           .in("crop_id", cropIds)
           .order("recorded_at", { ascending: true })
 
-        if (growthData) {
-          // Group by month
-          const monthlyData: Record<string, { total: number; count: number }> = {}
+        if (growthData && growthData.length > 0) {
+          // Group by month-year for proper sorting
+          const monthlyData: Record<string, { total: number; count: number; date: Date }> = {}
           growthData.forEach((g) => {
             const date = new Date(g.recorded_at)
-            const monthKey = date.toLocaleDateString("en-US", { month: "short" })
-            if (!monthlyData[monthKey]) {
-              monthlyData[monthKey] = { total: 0, count: 0 }
+            // Use year-month for proper chronological sorting
+            const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+            
+            if (!monthlyData[yearMonth]) {
+              monthlyData[yearMonth] = { total: 0, count: 0, date }
             }
-            monthlyData[monthKey].total += Number(g.growth_percentage || 0)
-            monthlyData[monthKey].count += 1
+            monthlyData[yearMonth].total += Number(g.growth_percentage || 0)
+            monthlyData[yearMonth].count += 1
           })
 
+          // Sort chronologically and take last 7 months
           const chartData = Object.entries(monthlyData)
-            .map(([month, { total, count }]) => ({
-              month,
-              growth: Math.round(total / count),
-            }))
-            .slice(-8) // Last 8 months
+            .sort(([a], [b]) => a.localeCompare(b)) // Sort by year-month string
+            .slice(-7) // Last 7 months
+            .map(([yearMonth, { total, count, date }]) => {
+              const monthShort = date.toLocaleDateString("nl-NL", { month: "short" })
+              return {
+                month: monthShort.charAt(0).toUpperCase() + monthShort.slice(1),
+                growth: Math.round(total / count),
+                date: date.getTime(), // Store timestamp for sorting
+              }
+            })
+            .sort((a, b) => a.date - b.date) // Ensure final sort by date
+            .map(({ month, growth }) => ({ month, growth })) // Remove date from final data
 
           setData(chartData.length > 0 ? chartData : [])
+        } else {
+          setData([])
         }
       } catch (err) {
         console.error("Error fetching growth data:", err)
@@ -74,14 +87,25 @@ export function CropGrowthChart() {
 
     fetchGrowthData()
   }, [])
+  // Calculate domain for Y-axis
+  const minGrowth = data.length > 0 ? Math.min(...data.map((d) => d.growth)) : 0
+  const maxGrowth = data.length > 0 ? Math.max(...data.map((d) => d.growth)) : 100
+  const domain = [Math.max(0, minGrowth - 10), Math.min(100, maxGrowth + 10)]
+
   if (loading) {
     return (
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Crop Growth</CardTitle>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Sprout className="h-5 w-5 text-green-600" />
+            Crop Growth
+          </CardTitle>
+          <CardDescription>Gemiddelde groei percentage per maand</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">Loading...</div>
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm" suppressHydrationWarning>
+            Groeidata laden...
+          </div>
         </CardContent>
       </Card>
     )
@@ -90,12 +114,16 @@ export function CropGrowthChart() {
   if (data.length === 0) {
     return (
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">Crop Growth</CardTitle>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Sprout className="h-5 w-5 text-green-600" />
+            Crop Growth
+          </CardTitle>
+          <CardDescription>Gemiddelde groei percentage per maand</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            No growth data available. Add crops and growth records to see the chart.
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm" suppressHydrationWarning>
+            Geen groeidata beschikbaar. Voeg crops en groeirecords toe om de grafiek te zien.
           </div>
         </CardContent>
       </Card>
@@ -104,31 +132,50 @@ export function CropGrowthChart() {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Crop Growth</CardTitle>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <Sprout className="h-5 w-5 text-green-600" />
+          Crop Growth
+        </CardTitle>
+        <CardDescription>Gemiddelde groei percentage per maand</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px]">
+        <div className="h-[200px]" suppressHydrationWarning>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="growthGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2d7a3a" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#2d7a3a" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280" }} />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fill: "#6b7280" }} 
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#6b7280" }}
+                domain={domain}
+                tickFormatter={(value) => `${value}%`}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#fff",
                   border: "1px solid #e5e7eb",
                   borderRadius: "8px",
+                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                 }}
+                formatter={(value) => [`${value}%`, "Groei"]}
+                labelStyle={{ fontWeight: 600, marginBottom: 4 }}
               />
-              <Area type="monotone" dataKey="growth" stroke="#2d7a3a" strokeWidth={2} fill="url(#growthGradient)" />
-            </AreaChart>
+              <Line
+                type="monotone"
+                dataKey="growth"
+                stroke="#2d7a3a"
+                strokeWidth={2.5}
+                dot={{ fill: "#2d7a3a", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: "#2d7a3a" }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </CardContent>

@@ -1,11 +1,9 @@
 import { Header } from "@/components/dashboard/header"
 import { StatCard } from "@/components/dashboard/stat-card"
-import { TemperatureChart } from "@/components/dashboard/charts/temperature-chart"
-import { RainfallChart } from "@/components/dashboard/charts/rainfall-chart"
-import { ClimateTimelineChart } from "@/components/dashboard/charts/climate-timeline-chart"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Sun, Droplets, CloudRain, AlertTriangle, Thermometer } from "lucide-react"
 import { getLatestClimateData } from "@/lib/supabase/queries"
+import { ClimateChartsWrapper } from "@/components/dashboard/climate-charts-wrapper"
 
 export default async function ClimatePage() {
   const latestClimate = await getLatestClimateData()
@@ -42,22 +40,8 @@ export default async function ClimatePage() {
           />
         </div>
 
-        {/* D3.js Timeline Chart - Last 30 Days */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Klimaat Overzicht</CardTitle>
-            <CardDescription>Bekijk het klimaat over de afgelopen 30 dagen</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ClimateTimelineChart />
-          </CardContent>
-        </Card>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <TemperatureChart />
-          <RainfallChart />
-        </div>
+        {/* Climate Charts - Lazy loaded in client component */}
+        <ClimateChartsWrapper />
 
         {/* Climate Advisory */}
         <Card>

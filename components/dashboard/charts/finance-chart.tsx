@@ -62,6 +62,16 @@ export function FinanceChart() {
     }
 
     fetchBalanceData()
+
+    // Listen for custom event when transaction is added/updated/deleted
+    const handleTransactionChange = () => {
+      fetchBalanceData()
+    }
+    window.addEventListener("transaction-changed", handleTransactionChange)
+
+    return () => {
+      window.removeEventListener("transaction-changed", handleTransactionChange)
+    }
   }, [])
 
   if (loading) {

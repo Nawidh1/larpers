@@ -3,10 +3,22 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
+import { NetworkProvider } from "@/components/network-aware"
 import "./globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+// Optimize font loading for slow connections - use display swap and preload
+const geist = Geist({ 
+  subsets: ["latin"],
+  display: 'swap', // Show fallback font immediately, swap when loaded
+  preload: true,
+  fallback: ['system-ui', 'arial'], // Fast fallback fonts
+})
+const geistMono = Geist_Mono({ 
+  subsets: ["latin"],
+  display: 'swap',
+  preload: false, // Only preload main font
+  fallback: ['monospace'],
+})
 
 export const metadata: Metadata = {
   title: "Agritech Dashboard",
@@ -52,7 +64,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Preload critical resources for faster loading on slow connections */}
+        <link rel="preload" href="/manifest.json" as="fetch" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        {/* Preconnect to Supabase if configured */}
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
+        )}
+      </head>
+      <body className={`${geist.className} antialiased`} suppressHydrationWarning>
+        <NetworkProvider>
         {/* Remove browser extension attributes BEFORE React hydrates */}
         <script
           dangerouslySetInnerHTML={{
@@ -165,6 +187,7 @@ export default function RootLayout({
         </div>
         <Analytics />
         <ServiceWorkerRegistration />
+        </NetworkProvider>
       </body>
     </html>
   )

@@ -1,25 +1,32 @@
+"use client"
+
+import { useState } from "react"
 import { Header } from "@/components/dashboard/header"
 import { ReportsList } from "@/components/dashboard/reports-list"
+import { AddReportDialog } from "@/components/dashboard/add-report-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Plus, FileText, Download } from "lucide-react"
+import { Plus, FileText } from "lucide-react"
 
 export default function ReportsPage() {
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleReportCreated = () => {
+    setRefreshKey((prev) => prev + 1)
+  }
+
   return (
     <div className="flex flex-col h-full" suppressHydrationWarning>
       <Header title="Reports">
         <div className="flex items-center gap-2 flex-wrap">
-          <Button className="bg-agri-green hover:bg-agri-green-dark text-white" size="sm">
+          <Button
+            className="bg-agri-green hover:bg-agri-green-dark text-white"
+            size="sm"
+            onClick={() => setDialogOpen(true)}
+          >
             <Plus size={16} className="mr-2" />
             Nieuw Rapport
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download size={16} className="mr-2" />
-            Download PDF
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download size={16} className="mr-2" />
-            Download CSV
           </Button>
         </div>
       </Header>
@@ -36,10 +43,12 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ReportsList />
+            <ReportsList refreshKey={refreshKey} />
           </CardContent>
         </Card>
       </div>
+
+      <AddReportDialog open={dialogOpen} onOpenChange={setDialogOpen} onSuccess={handleReportCreated} />
     </div>
   )
 }
