@@ -69,10 +69,12 @@ export function NotificationsDropdown() {
         .in("status", ["issue"])
         .limit(5)
 
-      // Check for upcoming harvests
+      // Check for upcoming harvests (within 1 week, at least 1 day in the future)
       const today = new Date()
-      const nextWeek = new Date(today)
-      nextWeek.setDate(nextWeek.getDate() + 7)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1) // Start from tomorrow (at least 1 day away)
+      const oneWeekFromNow = new Date(today)
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7) // 1 week = 7 days
 
       const { data: upcomingHarvests } = await supabase
         .from("crops")
@@ -80,9 +82,9 @@ export function NotificationsDropdown() {
         .eq("user_id", user.id)
         .eq("status", "growing")
         .not("expected_harvest", "is", null)
-        .gte("expected_harvest", today.toISOString().split("T")[0])
-        .lte("expected_harvest", nextWeek.toISOString().split("T")[0])
-        .limit(5)
+        .gte("expected_harvest", tomorrow.toISOString().split("T")[0]) // At least 1 day in the future
+        .lte("expected_harvest", oneWeekFromNow.toISOString().split("T")[0])
+        .limit(10)
 
       const notificationList: Notification[] = []
 
@@ -124,11 +126,26 @@ export function NotificationsDropdown() {
         upcomingHarvests.forEach((crop) => {
           const harvestDate = new Date(crop.expected_harvest!)
           const daysUntil = Math.ceil((harvestDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+          
+          // Format message: show days if less than 30, otherwise show months
+          let message = ""
+          if (daysUntil < 30) {
+            message = `${crop.name} is klaar voor oogst over ${daysUntil} ${daysUntil === 1 ? "dag" : "dagen"}.`
+          } else {
+            const monthsUntil = Math.floor(daysUntil / 30)
+            const remainingDays = daysUntil % 30
+            if (remainingDays === 0) {
+              message = `${crop.name} is klaar voor oogst over ${monthsUntil} ${monthsUntil === 1 ? "maand" : "maanden"}.`
+            } else {
+              message = `${crop.name} is klaar voor oogst over ${monthsUntil} ${monthsUntil === 1 ? "maand" : "maanden"} en ${remainingDays} ${remainingDays === 1 ? "dag" : "dagen"}.`
+            }
+          }
+          
           notificationList.push({
             id: `harvest-${crop.id}`,
             type: "harvest",
             title: "Oogst Binnenkort",
-            message: `${crop.name} is klaar voor oogst over ${daysUntil} ${daysUntil === 1 ? "dag" : "dagen"}.`,
+            message,
             read: false,
             created_at: new Date().toISOString(),
             actionUrl: "/dashboard/crops",

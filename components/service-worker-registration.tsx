@@ -8,6 +8,18 @@ export function ServiceWorkerRegistration() {
       return
     }
 
+    // Only register service worker in production (not in development)
+    // Check if we're in development by checking the hostname
+    const isDevelopment = 
+      window.location.hostname === "localhost" || 
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.includes("localhost")
+
+    if (isDevelopment) {
+      console.log("Service Worker registration skipped in development mode")
+      return
+    }
+
     const registerServiceWorker = async () => {
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", {

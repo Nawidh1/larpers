@@ -177,12 +177,61 @@ export function BankAccountsManager() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async (accountId: string) => {
-    if (!confirm("Weet je zeker dat je deze bankrekening wilt verwijderen?")) {
-      return
-    }
-
     try {
       const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        alert("Je bent niet ingelogd")
+        return
+      }
+
+      // Check how many transactions are linked to this account
+      const { data: linkedTransactions, error: transactionsError } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("bank_account_id", accountId)
+
+      const transactionCount = linkedTransactions?.length || 0
+
+      // First confirmation: delete bank account?
+      const confirmDeleteAccount = confirm(
+        transactionCount > 0
+          ? `Weet je zeker dat je deze bankrekening wilt verwijderen?\n\nDeze bankrekening heeft ${transactionCount} gekoppelde transactie${transactionCount !== 1 ? 's' : ''}.`
+          : "Weet je zeker dat je deze bankrekening wilt verwijderen?"
+      )
+
+      if (!confirmDeleteAccount) {
+        return // User cancelled
+      }
+
+      // Second confirmation: delete transactions too? (only if there are transactions)
+      let shouldDeleteTransactions = false
+      if (transactionCount > 0) {
+        shouldDeleteTransactions = confirm(
+          `Wil je ook de ${transactionCount} gekoppelde transactie${transactionCount !== 1 ? 's' : ''} verwijderen?\n\nAls je 'Annuleren' kiest, blijven de transacties behouden maar worden ze niet meer gekoppeld aan een bankrekening.`
+        )
+      }
+
+      // If there are transactions and user wants to delete them
+      if (transactionCount > 0 && shouldDeleteTransactions) {
+        const { error: deleteTransactionsError } = await supabase
+          .from("transactions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("bank_account_id", accountId)
+
+        if (deleteTransactionsError) {
+          console.error("Error deleting transactions:", deleteTransactionsError)
+          alert("Fout bij verwijderen van transacties")
+          return
+        }
+      }
+
+      // Delete the bank account
       const { error } = await supabase.from("bank_accounts").delete().eq("id", accountId)
 
       if (error) {
@@ -190,6 +239,18 @@ export function BankAccountsManager() {
         alert("Fout bij verwijderen")
       } else {
         fetchAccounts()
+        // Refresh the page to update balance and other components
+        router.refresh()
+        // Always dispatch event to update balance card (bank account balance is removed)
+        window.dispatchEvent(new Event("transaction-changed"))
+        
+        if (transactionCount > 0 && shouldDeleteTransactions) {
+          alert(`Bankrekening en ${transactionCount} transactie${transactionCount !== 1 ? 's' : ''} verwijderd. Het saldo is bijgewerkt.`)
+        } else if (transactionCount > 0) {
+          alert(`Bankrekening verwijderd. De ${transactionCount} transactie${transactionCount !== 1 ? 's' : ''} blijven behouden maar zijn niet meer gekoppeld aan een bankrekening.`)
+        } else {
+          alert("Bankrekening verwijderd.")
+        }
       }
     } catch (err) {
       console.error("Error:", err)

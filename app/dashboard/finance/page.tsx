@@ -40,30 +40,27 @@ export default async function FinancePage() {
           <BankAccountsManager />
         </div>
 
-        {/* Charts and Transactions Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          {/* Finance Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Saldo Overzicht</CardTitle>
-              <CardDescription>Bekijk je saldo ontwikkeling over tijd</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FinanceChart />
-            </CardContent>
-          </Card>
+        {/* Finance Chart Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Saldo Overzicht</CardTitle>
+            <CardDescription>Bekijk je saldo ontwikkeling over tijd</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FinanceChart />
+          </CardContent>
+        </Card>
 
-          {/* Transactions Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Recente Transacties</CardTitle>
-              <CardDescription>Laatste financiële transacties</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TransactionTable />
-            </CardContent>
-          </Card>
-        </div>
+        {/* Transactions Card - Full Width */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Recente Transacties</CardTitle>
+            <CardDescription>Laatste financiële transacties</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TransactionTable />
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
